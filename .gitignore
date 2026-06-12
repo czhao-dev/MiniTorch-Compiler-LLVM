@@ -1,0 +1,14 @@
+build/
+build-*/
+.cache/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.so
+*.dylib
+*.o
+*.ll
+*.bc
+benchmarks/results.csv
+docs/roadmap.md
+

@@ -1,0 +1,9 @@
+[project]
+name = "minitorch-compiler"
+version = "0.1.0"
+description = "A mini PyTorch-style compiler front end with an LLVM backend roadmap."
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
