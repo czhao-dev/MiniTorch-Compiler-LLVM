@@ -11,9 +11,9 @@
 
 MiniTorch takes Python functions annotated with tensor types and compiles them
 directly to native machine code through a full compiler pipeline: a Python
-subset lexer and parser, a tensor-aware type checker with shape inference,
-a computation graph IR, four custom LLVM optimization passes, and an LLVM
-backend targeting x86 and ARM.
+subset lexer and parser, an AST-level static analyzer, a tensor-aware type
+checker with shape inference, a computation graph IR, four custom LLVM
+optimization passes, and an LLVM backend targeting x86 and ARM.
 
 ---
 
@@ -93,6 +93,8 @@ Python source (.py)
     Parser               recursive descent → Python-subset AST
                          handles decorators, type hints, assignments
         │
+        ├──────────────► Static Analyzer   lint-style diagnostics on the AST:
+        │                                   unused variables, unreachable code
         ▼
     Type Checker         shape inference across all operations
     + Shape Inference    catches dimension mismatches at compile time
@@ -120,6 +122,26 @@ Python source (.py)
     Native Binary + Benchmark
     (PyTorch eager  vs  MiniTorch no-opt  vs  MiniTorch optimized)
 ```
+
+---
+
+## Static Analysis
+
+Immediately after parsing, MiniTorch runs an AST-level static analyzer that
+emits lint-style diagnostics. These are warnings, not errors — they don't
+block compilation, but flag code that is likely a mistake.
+
+### Unused Variables
+Flags assignments whose target is never read before the function returns or
+before the name is reassigned. Catches leftover intermediate tensors from
+refactoring.
+
+### Unreachable Code
+Flags statements that appear after an unconditional `return` in the same
+block — code that can never execute.
+
+Diagnostics are printed to stderr during a normal compile, or can be dumped
+on their own with `--emit-diagnostics`.
 
 ---
 
@@ -195,6 +217,8 @@ minitorch-compiler/
 │   ├── typechecker.h
 │   ├── graph.h               ← computation graph IR
 │   ├── codegen.h
+│   ├── analysis/
+│   │   └── static_analyzer.h ← AST-level lint diagnostics
 │   └── passes/
 │       ├── constant_fold.h
 │       ├── dce.h
@@ -207,6 +231,8 @@ minitorch-compiler/
 │   ├── graph.cpp
 │   ├── codegen.cpp
 │   ├── main.cpp
+│   ├── analysis/
+│   │   └── static_analyzer.cpp
 │   └── passes/
 │       ├── constant_fold.cpp
 │       ├── dce.cpp
@@ -221,7 +247,8 @@ minitorch-compiler/
 │   ├── parser_test.cpp
 │   ├── typechecker_test.cpp
 │   ├── graph_test.cpp
-│   └── codegen_test.cpp
+│   ├── codegen_test.cpp
+│   └── static_analyzer_test.cpp
 ├── examples/
 │   ├── matmul.py
 │   ├── mlp_forward.py
@@ -252,6 +279,9 @@ make -j$(nproc)
 
 # Compile a Python file to a native shared library
 ./mtc examples/mlp_forward.py -o mlp_forward.so
+
+# Run static analysis diagnostics only (unused variables, unreachable code)
+./mtc examples/mlp_forward.py --emit-diagnostics
 
 # Dump computation graph IR
 ./mtc examples/mlp_forward.py --emit-graph
