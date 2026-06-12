@@ -11,4 +11,5 @@ __pycache__/
 *.bc
 benchmarks/results.csv
 docs/roadmap.md
+.claude/
 
